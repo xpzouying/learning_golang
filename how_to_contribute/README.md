@@ -68,7 +68,43 @@
 
 ### 提交Pull Request
 
+1. 查找PR/MR，看看是否存在相关的问题；
 
+2. 若没有存在，则确保指定给自己，避免多人重复工作；
+
+3. 分支开发，新建分支。`git checkout -b fix-xx-branch master`
+
+4. 开发修复相应的bug，包括测试用例；
+
+5. 确保开发中遵循后面的规范；
+
+6. 跑通所有的测试，`go test -v ./...`。如果未跑通测试，CI会报错，不允许PR。
+
+7. Commit，确保遵循commit规范。`git commit -a`
+
+8. Push：`git push origin fix-xx-branch`
+
+   > ➜  ac git:(update_router_api) git push -u origin update_router_api
+   > Enumerating objects: 9, done.
+   > Counting objects: 100% (9/9), done.
+   > Delta compression using up to 8 threads
+   > Compressing objects: 100% (5/5), done.
+   > Writing objects: 100% (5/5), 582 bytes | 582.00 KiB/s, done.
+   > Total 5 (delta 4), reused 0 (delta 0)
+   > remote:
+   > remote: To create a merge request for update_router_api, visit:
+   > remote:   https://www.gitlab.com/zouying/ac/merge_requests/new?merge_request%5Bsource_branch%5D=update_router_api
+   > remote:
+   > To www.gitlab.com:zouying/ac.git
+   >
+   >  * [new branch]      update_router_api -> update_router_api
+   >   Branch 'update_router_api' set up to track remote branch 'update_router_api' from 'origin'.
+
+9. CI测试：Push到远程仓库，会自动触发CI测试，等待CI Jobs完成。
+
+10. 发出Pull Request：描述PR，指定code review的同学。
+
+11. code review通过后，合入master。勾选选项：合入master后，删除分支。避免过多的分支在远程仓库。
 
 
 
