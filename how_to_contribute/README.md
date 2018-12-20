@@ -139,6 +139,22 @@
 
 
 
+Go官方的规范示例：
+
+> ```
+> math: improve Sin, Cos and Tan precision for very large arguments
+> 
+> The existing implementation has poor numerical properties for
+> large arguments, so use the McGillicutty algorithm to improve
+> accuracy above 1e10.
+> 
+> The algorithm is described at https://wikipedia.org/wiki/McGillicutty_Algorithm
+> 
+> Fixes #159
+> ```
+
+
+
 
 ### 打分规范
 
