@@ -44,13 +44,13 @@
 
 对应的go issue，[issues 20](https://github.com/golang/go/issues/20)
 
-![image-20181220095624458](/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_contribute/assets/image-20181220095624458-5270984.png)
+![image-20181220095624458](./assets/image-20181220095624458-5270984.png)
 
 
 
 其他的示例：
 
-![issue_example](/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_contribute/assets/issue_example.jpg)
+![issue_example](./assets/issue_example.jpg)
 
 
 
