@@ -4,9 +4,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/sirupsen/logrus"
 )
 
-func TestHandleRoot_Recorder(t *testing.T) {
+func TestHelloHandleFunc(t *testing.T) {
 	rw := httptest.NewRecorder()
 	name := "zouying"
 	req := httptest.NewRequest(http.MethodPost, "/hello?name="+name, nil)
@@ -23,4 +25,12 @@ func TestHandleRoot_Recorder(t *testing.T) {
 	if counter[name] != 1 {
 		t.Errorf("counter value is error: visitor=%s count=%v", name, counter[name])
 	}
+}
+
+func TestHTTPServer(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(handleHello))
+	defer ts.Close()
+
+	logrus.Infof("server url: %s", ts.URL)
+
 }

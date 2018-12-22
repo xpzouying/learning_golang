@@ -236,6 +236,8 @@ go tool cover -html=coverage.out
 
 还有一种测试方法是运行一个HTTP Server，使用HTTP Client请求该Server对应的接口。
 
+httptest package中提供了`NewServer`方法，监听HandlerFunc处理函数，启动Server，启动Server的地址通过`URL`成员获得，例如：`http://127.0.0.1:52412`。需要注意的是，使用完毕后记得调用关闭：`Close()`。
+
 
 
 
