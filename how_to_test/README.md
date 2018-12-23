@@ -238,7 +238,39 @@ go tool cover -html=coverage.out
 
 httptest package中提供了`NewServer`方法，监听HandlerFunc处理函数，启动Server，启动Server的地址通过`URL`成员获得，例如：`http://127.0.0.1:52412`。需要注意的是，使用完毕后记得调用关闭：`Close()`。
 
+代码如下，
 
+```go
+func TestHTTPServer(t *testing.T) {
+	ts := httptest.NewServer(http.HandlerFunc(handleHello))
+	defer ts.Close()
+
+	logrus.Infof("server url: %s", ts.URL)
+
+	testURL := ts.URL + "/hello?name=zouying"
+	resp, err := http.Get(testURL)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if g, w := resp.StatusCode, http.StatusOK; g != w {
+		t.Errorf("status code = %q; want %q", g, w)
+		return
+	}
+}
+```
+
+运行测试，
+
+```bash
+➜  how_to_test git:(master) ✗ go test -v -run=TestHTTPServer
+=== RUN   TestHTTPServer
+INFO[0000] server url: http://127.0.0.1:52506
+INFO[0000] visited                                       count=1 module=main name=zouying
+--- PASS: TestHTTPServer (0.00s)
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_test      0.015s
+```
 
 
 

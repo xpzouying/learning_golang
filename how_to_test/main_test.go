@@ -33,4 +33,14 @@ func TestHTTPServer(t *testing.T) {
 
 	logrus.Infof("server url: %s", ts.URL)
 
+	testURL := ts.URL + "/hello?name=zouying"
+	resp, err := http.Get(testURL)
+	if err != nil {
+		t.Error(err)
+		return
+	}
+	if g, w := resp.StatusCode, http.StatusOK; g != w {
+		t.Errorf("status code = %q; want %q", g, w)
+		return
+	}
 }
