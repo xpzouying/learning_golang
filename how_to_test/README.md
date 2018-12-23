@@ -2,6 +2,14 @@
 
 
 
+测试的作用：
+
+- 验证代码是否符合预期
+- 资源竞争检查：race detect
+- 调优：profiling：memory/cpu
+
+
+
 ## 原始代码
 
 代码功能：访客记次数。
@@ -274,7 +282,87 @@ ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_test      
 
 
 
+**测试技巧：表格测试 (Table Based Tests)**
 
+
+
+代码如下，
+
+```go
+func TestHelloHandlerMultiple(t *testing.T) {
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "zouying", wCnt: 2},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	for _, tc := range tests {
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/hello?name="+tc.name, nil)
+		handleHello(rw, req)
+
+		if rw.Code != http.StatusOK {
+			t.Errorf("status code not ok, status code is %v", rw.Code)
+		}
+
+		if counter[tc.name] != tc.wCnt {
+			t.Errorf("counter value is error: visitor=%s count=%v", tc.name, counter[tc.name])
+		}
+	}
+}
+```
+
+
+
+运行测试，
+
+```bash
+➜  how_to_test git:(how_to_test) ✗ go test -run=TestHelloHandlerMultiple
+INFO[0000] visited                                       count=1 module=main name=zouying
+INFO[0000] visited                                       count=2 module=main name=zouying
+INFO[0000] visited                                       count=1 module=main name=user2
+INFO[0000] visited                                       count=1 module=main name=user3
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_test      0.016s
+```
+
+
+
+**测试工具：[testify](github.com/stretchr/testify/assert)**
+
+使用工具介绍各种 `if {}`判断，产生大量的冗余代码。
+
+
+
+代码，
+
+```go
+func TestHelloHandlerMultipleWithAssert(t *testing.T) {
+
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "zouying", wCnt: 2},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	for _, tc := range tests {
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/hello?name="+tc.name, nil)
+		handleHello(rw, req)
+
+		assert.Equal(t, http.StatusOK, rw.Code)
+		assert.Equal(t, tc.wCnt, counter[tc.name])
+	}
+}
+```
 
 
 

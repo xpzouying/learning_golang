@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sirupsen/logrus"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestHelloHandleFunc(t *testing.T) {
@@ -42,5 +43,54 @@ func TestHTTPServer(t *testing.T) {
 	if g, w := resp.StatusCode, http.StatusOK; g != w {
 		t.Errorf("status code = %q; want %q", g, w)
 		return
+	}
+}
+
+func TestHelloHandlerMultiple(t *testing.T) {
+
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "zouying", wCnt: 2},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	for _, tc := range tests {
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/hello?name="+tc.name, nil)
+		handleHello(rw, req)
+
+		if rw.Code != http.StatusOK {
+			t.Errorf("status code not ok, status code is %v", rw.Code)
+		}
+
+		if counter[tc.name] != tc.wCnt {
+			t.Errorf("counter value is error: visitor=%s count=%v", tc.name, counter[tc.name])
+		}
+	}
+}
+
+func TestHelloHandlerMultipleWithAssert(t *testing.T) {
+
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "zouying", wCnt: 2},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	for _, tc := range tests {
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodPost, "/hello?name="+tc.name, nil)
+		handleHello(rw, req)
+
+		assert.Equal(t, http.StatusOK, rw.Code)
+		assert.Equal(t, tc.wCnt, counter[tc.name])
 	}
 }
