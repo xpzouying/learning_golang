@@ -681,7 +681,7 @@ Previous read at 0x00c0000a8f90 by goroutine 7:
       > 
       > ```
 
-- 使用mutext。
+- 使用mutex。
 
   - [Package sync](https://golang.org/pkg/sync/)
   - [sync.Mutex - Tour of Go](https://tour.golang.org/concurrency/9)
