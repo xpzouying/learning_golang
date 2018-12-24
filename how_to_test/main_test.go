@@ -3,6 +3,7 @@ package main
 import (
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/sirupsen/logrus"
@@ -93,4 +94,58 @@ func TestHelloHandlerMultipleWithAssert(t *testing.T) {
 		assert.Equal(t, http.StatusOK, rw.Code)
 		assert.Equal(t, tc.wCnt, counter[tc.name])
 	}
+}
+
+func TestHelloHandlerInSubtest(t *testing.T) {
+
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	for _, tc := range tests {
+		t.Run("test-"+tc.name, func(t *testing.T) {
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/hello?name="+tc.name, nil)
+			handleHello(rw, req)
+
+			assert.Equal(t, http.StatusOK, rw.Code)
+			assert.Equal(t, tc.wCnt, counter[tc.name])
+		})
+	}
+}
+
+func TestHelloHandlerDetectDataRace(t *testing.T) {
+
+	tests := []struct {
+		name string
+		wCnt int
+	}{
+		{name: "zouying", wCnt: 1},
+		{name: "user2", wCnt: 1},
+		{name: "user3", wCnt: 1},
+	}
+
+	var wg sync.WaitGroup
+	wg.Add(len(tests))
+	for _, tc := range tests {
+		name := tc.name
+		want := tc.wCnt
+
+		go func() {
+			defer wg.Done()
+
+			rw := httptest.NewRecorder()
+			req := httptest.NewRequest(http.MethodPost, "/hello?name="+name, nil)
+			handleHello(rw, req)
+
+			assert.Equal(t, http.StatusOK, rw.Code)
+			assert.Equal(t, want, counter[name])
+		}()
+	}
+	wg.Wait()
 }
