@@ -168,7 +168,7 @@ touch main_test.go
 编写第一个测试用例：
 
 ```go
-func TestHandleRoot_Recorder(t *testing.T) {
+func TestHelloHandleFunc(t *testing.T) {
 	rw := httptest.NewRecorder()
 	name := "zouying"
 	req := httptest.NewRequest(http.MethodPost, "/hello?name="+name, nil)
@@ -193,9 +193,9 @@ func TestHandleRoot_Recorder(t *testing.T) {
 运行测试：`go test -v`：
 
 > ➜  how_to_test git:(how_to_test) ✗ go test -v
-> === RUN   TestHandleRoot_Recorder
+> === RUN   TestHelloHandleFunc
 > INFO[0000] visited                                       count=1 module=main name=zouying
-> --- PASS: TestHandleRoot_Recorder (0.00s)
+> --- PASS: TestHelloHandleFunc (0.00s)
 > PASS
 > ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_test      0.015s
 
