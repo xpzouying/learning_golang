@@ -10,18 +10,10 @@ learning golang
 ### golang入门及工具
 
 - golang入门
+  - [how_to_test](https://github.com/xpzouying/learning_golang/tree/master/how_to_test)
 - 开发工具
 - 开发规范
-- 测试用例
-
-### 工程化的基础
-
-- 代码开发标准规范
-- 代码提交规范
-  - 代码提交备注
-  - 开发规范、分支开发及提交
-- CI配置，运行前规范检查、运行后检查
-- CD配置（TODO）
+  - [how to contributing](https://github.com/xpzouying/learning_golang/tree/master/how_to_contribute)
 
 ### golang调优
 
