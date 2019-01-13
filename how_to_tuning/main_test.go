@@ -10,6 +10,8 @@ import (
 )
 
 func BenchmarkHandleFunc(b *testing.B) {
+	b.ReportAllocs()
+
 	logrus.SetOutput(ioutil.Discard)
 
 	rw := httptest.NewRecorder()
