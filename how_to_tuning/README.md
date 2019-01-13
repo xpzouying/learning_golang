@@ -28,18 +28,17 @@ var mu sync.Mutex // mutex for counter
 func handleHello(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	mu.Lock()
+	defer mu.Unlock()
 	counter[name]++
-	cnt := counter[name]
-	mu.Unlock()
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
-		"'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(cnt) + "</p>"))
+		"'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
 
 	logrus.WithFields(logrus.Fields{
 		"module": "main",
 		"name":   name,
-		"count":  cnt,
+		"count":  counter[name],
 	}).Infof("visited")
 }
 
@@ -279,9 +278,9 @@ b.ReportAllocs()
 ➜  how_to_tuning git:(master) ✗ go test -bench . -cpuprofile=/tmp/cpu.prof
 goos: darwin
 goarch: amd64
-BenchmarkHandleFunc-8             300000              5105 ns/op            1414 B/op    25 allocs/op
+BenchmarkHandleFunc-8             300000              4671 ns/op            1411 B/op         25 allocs/op
 PASS
-ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    2.772s
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    1.655s
 ```
 
 
@@ -364,6 +363,696 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
 ```
 
 
+
+运行`web`使用浏览器打开
+
+```bash
+(pprof) web
+(pprof)
+```
+
+![pprof001](./assets/pprof001.svg)
+
+
+
+## Memory 调优
+
+
+
+运行压测程序时，加入`-memprofile`参数。
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -memprofile=/tmp/mem.prof
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8             300000              5699 ns/op            1411 B/op         25 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    1.827s
+```
+
+
+
+使用`go tool pprof /tmp/mem.prof`打开内存压测情况。默认打开的是`alloc_space`类型的内存状态，表示在这个过程中，申请了内存的情况。
+
+```bash
+➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/mem.prof
+Type: alloc_space
+Time: Jan 13, 2019 at 9:22pm (CST)
+Entering interactive mode (type "help" for commands, "o" for options)
+```
+
+
+
+使用`topN`或者`topN -cum`查看细节，
+
+```bash
+(pprof) top
+Showing nodes accounting for 395.56MB, 96.58% of 409.56MB total
+Showing top 10 nodes out of 25
+      flat  flat%   sum%        cum   cum%
+  114.52MB 27.96% 27.96%   114.52MB 27.96%  github.com/sirupsen/logrus.(*Entry).WithFields
+   77.02MB 18.81% 46.77%    77.02MB 18.81%  bytes.makeSlice
+   54.50MB 13.31% 60.08%    97.01MB 23.69%  github.com/sirupsen/logrus.(*TextFormatter).Format
+   54.50MB 13.31% 73.38%   409.56MB   100%  _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello
+      31MB  7.57% 80.95%   128.01MB 31.26%  github.com/sirupsen/logrus.Entry.log
+      17MB  4.15% 85.11%       17MB  4.15%  github.com/sirupsen/logrus.(*Logger).releaseEntry
+      16MB  3.91% 89.01%       16MB  3.91%  fmt.Sprintf
+      14MB  3.42% 92.43%       14MB  3.42%  time.Time.Format
+    9.50MB  2.32% 94.75%     9.50MB  2.32%  fmt.Sprint
+    7.50MB  1.83% 96.58%     7.50MB  1.83%  sort.Strings
+(pprof) top -cum
+Showing nodes accounting for 205.03MB, 50.06% of 409.56MB total
+Showing top 10 nodes out of 25
+      flat  flat%   sum%        cum   cum%
+         0     0%     0%   409.56MB   100%  _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.BenchmarkHandleFunc
+   54.50MB 13.31% 13.31%   409.56MB   100%  _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello
+         0     0% 13.31%   409.56MB   100%  testing.(*B).launch
+         0     0% 13.31%   409.56MB   100%  testing.(*B).runN
+       5MB  1.22% 14.53%   137.01MB 33.45%  github.com/sirupsen/logrus.(*Entry).Infof
+         0     0% 14.53%   131.52MB 32.11%  github.com/sirupsen/logrus.(*Logger).WithFields
+         0     0% 14.53%   131.52MB 32.11%  github.com/sirupsen/logrus.WithFields
+         0     0% 14.53%   128.51MB 31.38%  github.com/sirupsen/logrus.(*Entry).Info
+      31MB  7.57% 22.10%   128.01MB 31.26%  github.com/sirupsen/logrus.Entry.log
+  114.52MB 27.96% 50.06%   114.52MB 27.96%  github.com/sirupsen/logrus.(*Entry).WithFields
+```
+
+
+
+使用`list`查看具体每一行的情况，
+
+```bash
+(pprof) list BenchmarkHandleFunc
+Total: 409.56MB
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.BenchmarkHandleFunc in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/main_test.go
+         0   409.56MB (flat, cum)   100% of Total
+         .          .     16:
+         .          .     17:   rw := httptest.NewRecorder()
+         .          .     18:   req := httptest.NewRequest(http.MethodPost, "/hello?name=zouying", nil)
+         .          .     19:
+         .          .     20:   for i := 0; i < b.N; i++ {
+         .   409.56MB     21:           handleHello(rw, req)
+         .          .     22:   }
+         .          .     23:}
+(pprof) list handleHello
+Total: 409.56MB
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/main.go
+   54.50MB   409.56MB (flat, cum)   100% of Total
+         .          .     16:   mu.Lock()
+         .          .     17:   counter[name]++
+         .          .     18:   cnt := counter[name]
+         .          .     19:   mu.Unlock()
+         .          .     20:
+         .     5.50MB     21:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+      25MB   102.02MB     22:   w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+   24.50MB    28.50MB     23:           "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(cnt) + "</p>"))
+         .          .     24:
+         .   131.52MB     25:   logrus.WithFields(logrus.Fields{
+         .          .     26:           "module": "main",
+    3.50MB     3.50MB     27:           "name":   name,
+    1.50MB     1.50MB     28:           "count":  cnt,
+         .   137.01MB     29:   }).Infof("visited")
+         .          .     30:}
+         .          .     31:
+         .          .     32:func main() {
+         .          .     33:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     34:
+```
+
+
+
+## 调优开始
+
+
+
+运行命令：运行压测时间稍微长一些，使用`-benchtime`可以设置。
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=3s -cpuprofile=/tmp/cpu.prof -memprofile=/tmp/mem.prof | tee 1_orig.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8            1000000              5403 ns/op            1307 B/op         25 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    5.699s
+```
+
+
+
+调优前运行的结果保存在`1_orig.txt`文件中，一会儿调优可以对比。
+
+使用`list`获取最需要优化的代码段。
+
+```bash
+(pprof) list BenchmarkHandleFunc
+Total: 4.69s
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.BenchmarkHandleFunc in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/main_test.go
+      10ms      4.48s (flat, cum) 95.52% of Total
+         .          .     15:   logrus.SetOutput(ioutil.Discard)
+         .          .     16:
+         .          .     17:   rw := httptest.NewRecorder()
+         .          .     18:   req := httptest.NewRequest(http.MethodPost, "/hello?name=zouying", nil)
+         .          .     19:
+      10ms       10ms     20:   for i := 0; i < b.N; i++ {
+         .      4.47s     21:           handleHello(rw, req)
+         .          .     22:   }
+         .          .     23:}
+
+(pprof) list handleHello
+Total: 4.88s
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github
+.com/ZOUYING/learning_golang/how_to_tuning/main.go
+      70ms      4.64s (flat, cum) 95.08% of Total
+         .          .     10:
+         .          .     11:var counter = map[string]int{}
+         .          .     12:var mu sync.Mutex // mutex for counter
+         .          .     13:
+         .          .     14:func handleHello(w http.ResponseWriter, r *http.Request) {
+      10ms       40ms     15:   name := r.FormValue("name")
+         .          .     16:   mu.Lock()
+         .       10ms     17:   defer mu.Unlock()
+         .       10ms     18:   counter[name]++
+         .          .     19:
+         .      170ms     20:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+      10ms      310ms     21:   w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+      10ms      250ms     22:           "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
+         .          .     23:
+      30ms      740ms     24:   logrus.WithFields(logrus.Fields{
+      10ms       50ms     25:           "module": "main",
+         .      120ms     26:           "name":   name,
+         .       80ms     27:           "count":  counter[name],
+         .      2.85s     28:   }).Infof("visited")
+         .       10ms     29:}
+         .          .     30:
+         .          .     31:func main() {
+         .          .     32:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     33:
+         .          .     34:   http.HandleFunc("/hello", handleHello)
+```
+
+
+
+查看内存情况，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/mem.prof
+Type: alloc_space
+Time: Jan 13, 2019 at 9:34pm (CST)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof) list handleHello
+Total: 1.26GB
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github
+.com/ZOUYING/learning_golang/how_to_tuning/main.go
+  185.51MB     1.26GB (flat, cum) 99.63% of Total
+         .          .     16:   mu.Lock()
+         .          .     17:   counter[name]++
+         .          .     18:   cnt := counter[name]
+         .          .     19:   mu.Unlock()
+         .          .     20:
+         .    11.50MB     21:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+   87.51MB   238.09MB     22:   w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+   83.01MB    87.51MB     23:           "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(cnt) + "</p>"))
+         .          .     24:
+         .   481.59MB     25:   logrus.WithFields(logrus.Fields{
+         .          .     26:           "module": "main",
+   11.50MB    11.50MB     27:           "name":   name,
+    3.50MB     3.50MB     28:           "count":  cnt,
+         .   456.03MB     29:   }).Infof("visited")
+         .          .     30:}
+         .          .     31:
+         .          .     32:func main() {
+         .          .     33:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     34:
+```
+
+
+
+可以发现有2个点需要重点优化，
+
+- logrus的日志输出；
+- w.Write()写响应结果；
+
+
+
+使用`fmt.Sprintf`而不是使用字符串拼接的方式。
+
+```go
+	fmt.Fprintf(w, "<h1 style='color: %s>Welcome!</h1> <p>Name: %s</p> <p>Count: %d</p>",
+		r.FormValue("color"),
+		name,
+		counter[name],
+	)
+```
+
+
+
+运行压测：
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=3s -cpuprofile=/tmp/2_cpu.prof -memprofile=/tmp/2_mem.prof | tee 2_fmtf.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8            1000000              6325 ns/op            1153 B/op         23 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    6.516s
+```
+
+
+
+运行`benchcmp`工具对比调优结果：
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 1_orig.txt 2_fmtf.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     5403          6325          +17.06%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     25             23             -8.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1307          1153          -11.78%
+```
+
+
+
+打开profile文件，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/2_cpu.prof
+Type: cpu
+Time: Jan 13, 2019 at 10:17pm (CST)
+Duration: 6.47s, Total samples = 5.70s (88.05%)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof) list handleHello
+Total: 5.70s
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/main.go
+      70ms      5.48s (flat, cum) 96.14% of Total
+         .          .     10:
+         .          .     11:var counter = map[string]int{}
+         .          .     12:var mu sync.Mutex // mutex for counter
+         .          .     13:
+         .          .     14:func handleHello(w http.ResponseWriter, r *http.Request) {
+         .       30ms     15:   name := r.FormValue("name")
+         .       20ms     16:   mu.Lock()
+         .       10ms     17:   defer mu.Unlock()
+         .       10ms     18:   counter[name]++
+         .          .     19:
+      10ms      100ms     20:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+         .          .     21:   // w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+         .          .     22:   //      "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
+         .      480ms     23:   fmt.Fprintf(w, "<h1 style='color: %s>Welcome!</h1> <p>Name: %s</p> <p>Count: %d</p>",
+         .      100ms     24:           r.FormValue("color"),
+         .          .     25:           name,
+         .       30ms     26:           counter[name],
+         .          .     27:   )
+         .          .     28:
+      10ms      950ms     29:   logrus.WithFields(logrus.Fields{
+      10ms       10ms     30:           "module": "main",
+      10ms      140ms     31:           "name":   name,
+      10ms       30ms     32:           "count":  counter[name],
+         .      3.52s     33:   }).Infof("visited")
+      20ms       50ms     34:}
+         .          .     35:
+         .          .     36:func main() {
+         .          .     37:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     38:
+         .          .     39:   http.HandleFunc("/hello", handleHello)
+```
+
+
+
+```bash
+➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/2_mem.prof
+Type: alloc_space
+Time: Jan 13, 2019 at 10:18pm (CST)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof) list handleHello
+Total: 1.10GB
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/main.go
+   39.50MB     1.09GB (flat, cum) 99.68% of Total
+         .          .     15:   name := r.FormValue("name")
+         .          .     16:   mu.Lock()
+         .          .     17:   defer mu.Unlock()
+         .          .     18:   counter[name]++
+         .          .     19:
+         .    14.50MB     20:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+         .          .     21:   // w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+         .          .     22:   //      "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
+         .   149.77MB     23:   fmt.Fprintf(w, "<h1 style='color: %s>Welcome!</h1> <p>Name: %s</p> <p>Count: %d</p>",
+      15MB       15MB     24:           r.FormValue("color"),
+         .          .     25:           name,
+    3.50MB     3.50MB     26:           counter[name],
+         .          .     27:   )
+         .          .     28:
+         .   474.59MB     29:   logrus.WithFields(logrus.Fields{
+         .          .     30:           "module": "main",
+   17.50MB    17.50MB     31:           "name":   name,
+    3.50MB     3.50MB     32:           "count":  counter[name],
+         .   442.03MB     33:   }).Infof("visited")
+         .          .     34:}
+         .          .     35:
+         .          .     36:func main() {
+         .          .     37:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     38:
+```
+
+
+
+优化的最佳实践之一：避免内存重复申请/释放开销。
+
+使用[sync/Pool](https://golang.org/pkg/sync/#Pool)作为cache进行优化。
+
+```
+A Pool is a set of temporary objects that may be individually saved and retrieved.
+
+Any item stored in the Pool may be removed automatically at any time without notification. If the Pool holds the only reference when this happens, the item might be deallocated.
+
+A Pool is safe for use by multiple goroutines simultaneously.
+
+Pool's purpose is to cache allocated but unused items for later reuse, relieving pressure on the garbage collector. That is, it makes it easy to build efficient, thread-safe free lists. However, it is not suitable for all free lists.
+
+An appropriate use of a Pool is to manage a group of temporary items silently shared among and potentially reused by concurrent independent clients of a package. Pool provides a way to amortize allocation overhead across many clients.
+
+An example of good use of a Pool is in the fmt package, which maintains a dynamically-sized store of temporary output buffers. The store scales under load (when many goroutines are actively printing) and shrinks when quiescent.
+
+On the other hand, a free list maintained as part of a short-lived object is not a suitable use for a Pool, since the overhead does not amortize well in that scenario. It is more efficient to have such objects implement their own free list.
+
+A Pool must not be copied after first use.
+```
+
+注意文档中所列的需要注意的事项。
+
+
+
+使用示例：
+
+```go
+package main
+
+import (
+	"bytes"
+	"io"
+	"os"
+	"sync"
+	"time"
+)
+
+var bufPool = sync.Pool{
+	New: func() interface{} {
+		// The Pool's New function should generally only return pointer
+		// types, since a pointer can be put into the return interface
+		// value without an allocation:
+		return new(bytes.Buffer)
+	},
+}
+
+// timeNow is a fake version of time.Now for tests.
+func timeNow() time.Time {
+	return time.Unix(1136214245, 0)
+}
+
+func Log(w io.Writer, key, val string) {
+	b := bufPool.Get().(*bytes.Buffer)
+	b.Reset()
+	// Replace this with time.Now() in a real logger.
+	b.WriteString(timeNow().UTC().Format(time.RFC3339))
+	b.WriteByte(' ')
+	b.WriteString(key)
+	b.WriteByte('=')
+	b.WriteString(val)
+	w.Write(b.Bytes())
+	bufPool.Put(b)
+}
+
+func main() {
+	Log(os.Stdout, "path", "/search?q=flowers")
+}
+```
+
+
+
+在我们的压测中，使用`sync.Pool`优化，写ResponseWrite响应的代码段。
+
+```bash
+	buf := pool.Get().(*bytes.Buffer)
+	defer pool.Put(buf)
+	buf.Reset()
+	buf.Write([]byte("<h1 style='color: "))
+	buf.Write([]byte(r.FormValue("color")))
+	buf.Write([]byte("'>Welcome!</h1> <p>Name: "))
+	buf.Write([]byte(name))
+	buf.Write([]byte("</p> <p>Count: "))
+	b := strconv.AppendInt(buf.Bytes(), int64(counter[name]), 10)
+	b = append(b, []byte("</p>")...)
+	w.Write(b)
+```
+
+
+
+运行压测：
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=3s -cpuprofile=/tmp/3_cpu.prof -memprofile=/tmp/3_mem.prof | tee 3_sync_pool_write.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8            1000000              4203 ns/op            1131 B/op         21 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    4.448s
+```
+
+
+
+与前一次的优化进行比较，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 2_fmtf.txt 3_sync_pool_write.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     6325          4203          -33.55%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     23             21             -8.70%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1153          1131          -1.91%
+```
+
+
+
+查看`list handleHello`内存申请情况：
+
+```bash
+➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/3_mem.prof
+Type: alloc_space
+Time: Jan 13, 2019 at 10:41pm (CST)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof) list handleHello
+Total: 1.07GB
+ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello in /Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/m
+ain.go
+      24MB     1.07GB (flat, cum) 99.71% of Total
+         .          .     22:   name := r.FormValue("name")
+         .          .     23:   mu.Lock()
+         .          .     24:   defer mu.Unlock()
+         .          .     25:   counter[name]++
+         .          .     26:
+         .    19.50MB     27:   w.Header().Set("Content-Type", "text/html; charset=utf-8")
+         .          .     28:   // w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
+         .          .     29:   //      "'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
+         .          .     30:
+         .          .     31:   // use - fmt.Fprintf
+         .          .     32:   // fmt.Fprintf(w, "<h1 style='color: %s>Welcome!</h1> <p>Name: %s</p> <p>Count: %d</p>",
+         .          .     33:   //      r.FormValue("color"),
+         .          .     34:   //      name,
+         .          .     35:   //      counter[name],
+         .          .     36:   // )
+         .          .     37:
+         .          .     38:   buf := pool.Get().(*bytes.Buffer)
+         .          .     39:   defer pool.Put(buf)
+         .          .     40:   buf.Reset()
+         .          .     41:   buf.Write([]byte("<h1 style='color: "))
+         .          .     42:   buf.Write([]byte(r.FormValue("color")))
+         .          .     43:   buf.Write([]byte("'>Welcome!</h1> <p>Name: "))
+         .          .     44:   buf.Write([]byte(name))
+         .          .     45:   buf.Write([]byte("</p> <p>Count: "))
+         .          .     46:   b := strconv.AppendInt(buf.Bytes(), int64(counter[name]), 10)
+         .          .     47:   b = append(b, []byte("</p>")...)
+         .   150.59MB     48:   w.Write(b)
+         .          .     49:
+         .   449.09MB     50:   logrus.WithFields(logrus.Fields{
+         .          .     51:           "module": "main",
+   16.50MB    16.50MB     52:           "name":   name,
+    7.50MB     7.50MB     53:           "count":  counter[name],
+         .   453.53MB     54:   }).Infof("visited")
+         .          .     55:}
+         .          .     56:
+         .          .     57:func main() {
+         .          .     58:   logrus.SetFormatter(&logrus.JSONFormatter{})
+         .          .     59:
+(pprof)
+```
+
+
+
+日志优化，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go run main.go
+{"count":1,"level":"info","module":"main","msg":"visited","name":"zouying","time":"2019-01
+-13T22:40:06+08:00"}
+{"count":2,"level":"info","module":"main","msg":"visited","name":"zouying","time":"2019-01-13T22:40:10+08:00"}
+```
+
+
+
+在profile分析中，输出日志的问题：
+
+消耗CPU和Mem都是大头：
+
+CPU：
+
+```bash
+         .      730ms     50:   logrus.WithFields(logrus.Fields{
+         .       30ms     51:           "module": "main",
+      10ms      110ms     52:           "name":   name,
+         .       30ms     53:           "count":  counter[name],
+         .      2.02s     54:   }).Infof("visited")
+      10ms       40ms     55:}
+```
+
+
+
+Mem：
+
+```bash
+         .   449.09MB     50:   logrus.WithFields(logrus.Fields{
+         .          .     51:           "module": "main",
+   16.50MB    16.50MB     52:           "name":   name,
+    7.50MB     7.50MB     53:           "count":  counter[name],
+         .   453.53MB     54:   }).Infof("visited")
+```
+
+
+
+
+
+日志输出段代码，
+
+```bash
+	logbuf := pool.Get().(*bytes.Buffer)
+	logbuf.Reset()
+	logbuf.WriteString(fmt.Sprintf("visited name=%s count=%d", name, counter[name]))
+	logrus.Info(logbuf.String())
+	pool.Put(logbuf)
+```
+
+
+
+日志效果，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go run main.go
+{"level":"info","msg":"visited name=eden count=1","time":"2019-01-13T23:02:07+08:00"}
+{"level":"info","msg":"visited name=zouying count=1","time":"2019-01-13T23:02:11+08:00"}
+{"level":"info","msg":"visited name=zouying count=2","time":"2019-01-13T23:02:12+08:00"}
+{"level":"info","msg":"visited name=zouying count=3","time":"2019-01-13T23:02:13+08:00"}
+```
+
+
+
+运行压测，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=3s -cpuprofile=/tmp/5_cpu.prof -memprofile=/tmp/5_mem.prof | tee 5_sync_pool_log.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8            1000000              3421 ns/op             783 B/op         19 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    3.614s
+```
+
+比较，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 4_sync_pool_writestring.txt 5_sync_pool_log.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     3999          3421          -14.45%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     21             19             -9.52%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1131          783           -30.77%
+```
+
+
+
+
+
+CPU日志输出：
+
+```bash
+         .          .     51:   logbuf := pool.Get().(*bytes.Buffer)
+         .          .     52:   logbuf.Reset()
+         .      280ms     53:   logbuf.WriteString(fmt.Sprintf("visited name=%s count=%d", name, counter[name]))
+         .      2.28s     54:   logrus.Info(logbuf.String())
+      10ms       30ms     55:   pool.Put(logbuf)
+```
+
+logrus日志输出时，内存使用情况，
+
+```bash
+         .          .     51:   logbuf := pool.Get().(*bytes.Buffer)
+         .          .     52:   logbuf.Reset()
+      20MB       61MB     53:   logbuf.WriteString(fmt.Sprintf("visited name=%s count=%d", name, counter[name]))
+      16MB   527.53MB     54:   logrus.Info(logbuf.String())
+         .          .     55:   pool.Put(logbuf)
+```
+
+
+
+使用火焰图打开profile，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go-torch /tmp/5_cpu.prof
+INFO[23:12:40] Run pprof command: go tool pprof -raw -seconds 30 /tmp/5_cpu.prof
+INFO[23:12:41] Writing svg to torch.svg
+```
+
+
+
+使用chrome浏览器打开`torch.svg`，
+
+![火焰图](./assets/torch.svg)
+
+
+
+生成内存火焰图，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go-torch --alloc_objects /tmp/5_mem.prof
+INFO[23:17:53] Run pprof command: go tool pprof -raw -seconds 30 --alloc_objects /tmp/5_mem.prof
+INFO[23:17:54] Writing svg to torch.svg
+```
+
+
+
+打开内存火焰图，
+
+![内存火焰图](assets/mem_torch.svg)
+
+
+
+优化结束后，与最初的性能比对情况。
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 1_orig.txt 5_sync_pool_log.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     5403          3421          -36.68%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     25             19             -24.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1307          783           -40.09%
+```
 
 
 
