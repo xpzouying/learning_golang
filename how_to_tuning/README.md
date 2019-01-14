@@ -258,7 +258,10 @@ b.ReportAllocs()
 
 如何使用工具：
 
-- topN
+- topN：默认显示flat Top 10的函数，可以加`-cum`统计总的消耗；
+- list Func：显示函数每行代码的采样分析；
+- web：生成svg热点图片
+- weblist：生成svg list代码采样分析；
 
 
 
@@ -266,7 +269,31 @@ b.ReportAllocs()
 
 原理：
 
-每秒钟100次的数据状态采样，
+每秒钟100次的数据状态采样，根据经验值，默认100Hz比较合理，一般不能大于500Hz。技能产生足够有效的数据，也不至于让系统产生卡顿。
+
+相关的定义在[StartCPUProfile()](https://golang.org/src/runtime/pprof/pprof.go#L740)
+
+```go
+func StartCPUProfile(w io.Writer) error {
+	// The runtime routines allow a variable profiling rate,
+	// but in practice operating systems cannot trigger signals
+	// at more than about 500 Hz, and our processing of the
+	// signal is not cheap (mostly getting the stack trace).
+	// 100 Hz is a reasonable choice: it is frequent enough to
+	// produce useful data, rare enough not to bog down the
+	// system, and a nice round number to make it easy to
+	// convert sample counts to seconds. Instead of requiring
+	// each client to specify the frequency, we hard code it.
+	const hz = 100
+
+	// ...
+    runtime.SetCPUProfileRate(hz)
+	go profileWriter(w)
+	return nil
+}
+```
+
+
 
 
 
@@ -330,6 +357,11 @@ Showing top 10 nodes out of 124
 
 
 
+- flat：时间，但是不包括子函数运行时间；
+- cum：包括自函数运行的时间；
+
+
+
 运行`list handleHello`查看handleHello函数的状态：
 
 ```bash
@@ -368,10 +400,19 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
 
 ```bash
 (pprof) web
-(pprof)
+(pprof) web handleHello
 ```
 
-![pprof001](./assets/pprof001.svg)
+![image-20190114114416109](./assets/image-20190114114416109.png)
+
+- 框越大/颜色越红 表示消耗越多/大
+- 连接线表示函数调用，连接线上的参数表示调用子函数的消耗（类似于-cum）
+
+
+
+也可以使用`weblist`或者`weblist handleHello`打开web版本的list，查看具体每一行代码的消耗。
+
+![weblist](./assets/image-20190114114255919.png)
 
 
 
@@ -392,7 +433,7 @@ ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    
 
 
 
-使用`go tool pprof /tmp/mem.prof`打开内存压测情况。默认打开的是`alloc_space`类型的内存状态，表示在这个过程中，申请了内存的情况。
+使用`go tool pprof /tmp/mem.prof`打开内存压测情况。默认打开的是`alloc_space`类型的内存状态，表示在这个过程中，申请了内存的情况。也可以带`--inuse_objects`查看内存使用情况。
 
 ```bash
 ➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/mem.prof
@@ -1053,6 +1094,265 @@ BenchmarkHandleFunc-8     25             19             -24.00%
 benchmark                 old bytes     new bytes     delta
 BenchmarkHandleFunc-8     1307          783           -40.09%
 ```
+
+
+
+目前`topN`显示，
+
+```bash
+(pprof) top -cum
+Showing nodes accounting for 0.50s, 3.48% of 14.38s total
+Dropped 120 nodes (cum <= 0.07s)
+Showing top 10 nodes out of 103
+      flat  flat%   sum%        cum   cum%
+     0.04s  0.28%  0.28%     13.84s 96.24%  _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.BenchmarkHandleFunc
+         0     0%  0.28%     13.84s 96.24%  testing.(*B).launch
+         0     0%  0.28%     13.84s 96.24%  testing.(*B).runN
+     0.18s  1.25%  1.53%     13.80s 95.97%  _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning.handleHello
+     0.01s  0.07%  1.60%     10.36s 72.04%  github.com/sirupsen/logrus.Infof
+     0.03s  0.21%  1.81%     10.35s 71.97%  github.com/sirupsen/logrus.(*Logger).Infof
+     0.06s  0.42%  2.23%      9.90s 68.85%  github.com/sirupsen/logrus.(*Entry).Infof
+     0.06s  0.42%  2.64%      9.22s 64.12%  github.com/sirupsen/logrus.(*Entry).Info
+     0.11s  0.76%  3.41%      8.95s 62.24%  github.com/sirupsen/logrus.Entry.log
+     0.01s  0.07%  3.48%      7.61s 52.92%  github.com/sirupsen/logrus.(*Entry).write
+(pprof)
+```
+
+
+
+优化日志输出：`logrus.Infof`日志输出占用了72.04%；
+
+
+
+生产问题，
+
+![image-20190114150048184](./assets/image-20190114150048184.png)
+
+
+
+查看`top`：
+
+![image-20190114150708086](./assets/image-20190114150708086.png)
+
+
+
+查看WithFields为什么消耗这么多： 
+
+![image-20190114150807984](./assets/image-20190114150807984.png)
+
+不停的在产生赋值操作。
+
+
+
+[logrus - issues 125: Improving logrus performance](https://github.com/Sirupsen/logrus/issues/125)
+
+![image-20190114143908128](/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/assets/image-20190114143908128.png)
+
+
+
+
+
+
+
+![image-20190114150923642](./assets/image-20190114150923642.png)
+
+INFO日志语句修改为直接输出有效信息：
+
+![image-20190114151009540](./assets/image-20190114151009540.png)
+
+
+
+优化后，
+
+- 内存从`18.7GB`优化到了`4.5GB`
+
+
+
+选取新的日志库，
+
+Log a message and 10 fields:
+
+| Library         | Time        | Bytes Allocated | Objects Allocated |
+| --------------- | ----------- | --------------- | ----------------- |
+| zerolog         | 767 ns/op   | 552 B/op        | 6 allocs/op       |
+| ⚡️ zap           | 848 ns/op   | 704 B/op        | 2 allocs/op       |
+| ⚡️ zap (sugared) | 1363 ns/op  | 1610 B/op       | 20 allocs/op      |
+| go-kit          | 3614 ns/op  | 2895 B/op       | 66 allocs/op      |
+| lion            | 5392 ns/op  | 5807 B/op       | 63 allocs/op      |
+| logrus          | 5661 ns/op  | 6092 B/op       | 78 allocs/op      |
+| apex/log        | 15332 ns/op | 3832 B/op       | 65 allocs/op      |
+| log15           | 20657 ns/op | 5632 B/op       | 93 allocs/op      |
+
+Log a static string, without any context or `printf`-style templating:
+
+| Library          | Time       | Bytes Allocated | Objects Allocated |
+| ---------------- | ---------- | --------------- | ----------------- |
+| zerolog          | 50 ns/op   | 0 B/op          | 0 allocs/op       |
+| ⚡️ zap            | 236 ns/op  | 0 B/op          | 0 allocs/op       |
+| standard library | 453 ns/op  | 80 B/op         | 2 allocs/op       |
+| ⚡️ zap (sugared)  | 337 ns/op  | 80 B/op         | 2 allocs/op       |
+| go-kit           | 508 ns/op  | 656 B/op        | 13 allocs/op      |
+| lion             | 771 ns/op  | 1224 B/op       | 10 allocs/op      |
+| logrus           | 1244 ns/op | 1505 B/op       | 27 allocs/op      |
+| apex/log         | 2751 ns/op | 584 B/op        | 11 allocs/op      |
+| log15            | 5181 ns/op | 1592 B/op       | 26 allocs/op      |
+
+
+
+使用`zerolog`输出日志：
+
+
+
+```go
+// 定义zerolog日志对象，输出到Discard中
+var logger zerolog.Logger
+logger = zerolog.New(ioutil.Discard)
+
+logger.Info().Msg(logbuf.String())  // 输出日志
+```
+
+
+
+```go
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=10s -cpuprofile=/tmp/7_cpu.pro
+f -memprofile=/tmp/7_mem.prof | tee 7_zerolog_string.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8           20000000              1077 ns/op             391 B/op          5 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    23.048s
+```
+
+
+
+
+
+## GC优化
+
+
+
+查看目前的top，
+
+```bash
+➜  learning_golang git:(master) ✗ go tool pprof /tmp/5_cpu.prof
+Type: cpu
+Time: Jan 13, 2019 at 11:05pm (CST)
+Duration: 3.58s, Total samples = 3.07s (85.87%)
+Entering interactive mode (type "help" for commands, "o" for options)
+(pprof) top
+Showing nodes accounting for 1750ms, 57.00% of 3070ms total
+Dropped 36 nodes (cum <= 15.35ms)
+Showing top 10 nodes out of 113
+      flat  flat%   sum%        cum   cum%
+     470ms 15.31% 15.31%      470ms 15.31%  runtime.(*mspan).refillAllocCache
+     240ms  7.82% 23.13%      240ms  7.82%  runtime.(*mspan).init (inline)
+     190ms  6.19% 29.32%     1320ms 43.00%  runtime.mallocgc
+     150ms  4.89% 34.20%      150ms  4.89%  runtime.memclrNoHeapPointers
+     150ms  4.89% 39.09%      150ms  4.89%  runtime.memmove
+     150ms  4.89% 43.97%      280ms  9.12%  strconv.appendEscapedRune
+     150ms  4.89% 48.86%      430ms 14.01%  strconv.appendQuotedWith
+      90ms  2.93% 51.79%       90ms  2.93%  time.nextStdChunk
+      80ms  2.61% 54.40%       80ms  2.61%  runtime.heapBitsSetType
+      80ms  2.61% 57.00%      240ms  7.82%  time.Time.AppendFormat
+```
+
+
+
+和之前优化进行比对，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 6_.txt 7_zerolog_string.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     3421          1077          -68.52%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     19             5              -73.68%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     783           391           -50.06%
+```
+
+
+
+和优化前进行比对，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 1_.txt 7_zerolog_string.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     5403          1077          -80.07%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     25             5              -80.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1307          391           -70.08%
+```
+
+
+
+查看`profile topN`，
+
+![image-20190114152930330](./assets/image-20190114152930330.png)
+
+将`fmt.Sprintf`替换为`bytes.Buffer.Write()`，
+
+```bash
+➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=10s -cpuprofile=/tmp/8_cpu.prof -memprofile=/tmp/8_mem.prof | tee 8_fmt_sprintf_to_bytes_write.txt
+goos: darwin
+goarch: amd64
+BenchmarkHandleFunc-8           20000000               796 ns/op             303 B/op          2 allocs/op
+PASS
+ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    17.168s
+```
+
+
+
+优化后，
+
+![image-20190114153033918](./assets/image-20190114153033918.png)
+
+
+
+与之前的比对，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 7_zerolog_string.txt 8_fmt_sprintf_to_bytes_write.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     1077          796           -26.09%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     5              2              -60.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     391           303           -22.51%
+```
+
+
+
+与第一次比对，
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 1_.txt 8_fmt_sprintf_to_bytes_write.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     5403          796           -85.27%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     25             2              -92.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1307          303           -76.82%
+```
+
+
+
+## Best Practice
+
+- 对于频繁分配的小对象，考虑使用`sync.Pool`对象池优化；避免高频分配/GC。
+- 使用`atomic/sync.Map`替换sync.Mutex
+- 使用第三方库优化
+- 加入`-race`进行`Data Race`检查
+- 在IO的地方，考虑引入goroutine，做成异步操作
+  - 这一部分会在下一章中介绍goroutine的调优
 
 
 

@@ -2,10 +2,11 @@ package main
 
 import (
 	"bytes"
-	"fmt"
 	"net/http"
 	"strconv"
 	"sync"
+
+	"github.com/rs/zerolog"
 
 	"github.com/sirupsen/logrus"
 )
@@ -19,6 +20,8 @@ var pool = sync.Pool{
 	},
 }
 
+var logger zerolog.Logger
+
 func handleHello(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	mu.Lock()
@@ -26,15 +29,6 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 	counter[name]++
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// w.Write([]byte("<h1 style='color: " + r.FormValue("color") +
-	// 	"'>Welcome!</h1> <p>Name: " + name + "</p> <p>Count: " + fmt.Sprint(counter[name]) + "</p>"))
-
-	// use - fmt.Fprintf
-	// fmt.Fprintf(w, "<h1 style='color: %s>Welcome!</h1> <p>Name: %s</p> <p>Count: %d</p>",
-	// 	r.FormValue("color"),
-	// 	name,
-	// 	counter[name],
-	// )
 
 	buf := pool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -50,15 +44,12 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 
 	logbuf := pool.Get().(*bytes.Buffer)
 	logbuf.Reset()
-	logbuf.WriteString(fmt.Sprintf("visited name=%s count=%d", name, counter[name]))
-	logrus.Infof("%s", logbuf.String())
+	logbuf.Write([]byte("visited name="))
+	logbuf.Write([]byte(name))
+	logbuf.Write([]byte("count="))
+	strconv.AppendInt(logbuf.Bytes(), int64(counter[name]), 10)
+	logger.Info().Msg(logbuf.String())
 	pool.Put(logbuf)
-
-	// logrus.WithFields(logrus.Fields{
-	// 	"module": "main",
-	// 	"name":   name,
-	// 	"count":  counter[name],
-	// }).Infof("visited")
 }
 
 func main() {

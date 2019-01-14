@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/rs/zerolog"
+
 	"github.com/sirupsen/logrus"
 )
 
@@ -13,6 +15,7 @@ func BenchmarkHandleFunc(b *testing.B) {
 	b.ReportAllocs()
 
 	logrus.SetOutput(ioutil.Discard)
+	logger = zerolog.New(ioutil.Discard)
 
 	rw := httptest.NewRecorder()
 	req := httptest.NewRequest(http.MethodPost, "/hello?name=zouying", nil)
