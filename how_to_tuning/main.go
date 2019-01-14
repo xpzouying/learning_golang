@@ -17,6 +17,8 @@ var mu sync.Mutex // mutex for counter
 var pool = sync.Pool{
 	New: func() interface{} {
 		return new(bytes.Buffer)
+		// buf := bytes.NewBuffer(make([]byte, 0, 8192))
+		// return buf
 	},
 }
 
@@ -25,10 +27,9 @@ var logger zerolog.Logger
 func handleHello(w http.ResponseWriter, r *http.Request) {
 	name := r.FormValue("name")
 	mu.Lock()
-	defer mu.Unlock()
 	counter[name]++
-
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	cnt := []byte(strconv.Itoa(counter[name]))
+	mu.Unlock()
 
 	buf := pool.Get().(*bytes.Buffer)
 	buf.Reset()
@@ -37,9 +38,8 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 	buf.Write([]byte("'>Welcome!</h1> <p>Name: "))
 	buf.Write([]byte(name))
 	buf.Write([]byte("</p> <p>Count: "))
-	b := strconv.AppendInt(buf.Bytes(), int64(counter[name]), 10)
-	b = append(b, []byte("</p>")...)
-	w.Write(b)
+	buf.Write(cnt)
+	w.Write(buf.Bytes())
 	pool.Put(buf)
 
 	logbuf := pool.Get().(*bytes.Buffer)
@@ -47,7 +47,7 @@ func handleHello(w http.ResponseWriter, r *http.Request) {
 	logbuf.Write([]byte("visited name="))
 	logbuf.Write([]byte(name))
 	logbuf.Write([]byte("count="))
-	strconv.AppendInt(logbuf.Bytes(), int64(counter[name]), 10)
+	logbuf.Write(cnt)
 	logger.Info().Msg(logbuf.String())
 	pool.Put(logbuf)
 }

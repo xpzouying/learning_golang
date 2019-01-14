@@ -99,8 +99,6 @@ ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    
 b.ReportAllocs()
 ```
 
-
-
 每个压测用例默认的压测时常大概在1秒钟，如果我们需要压测的时间长一些的话，那么可以在运行的时候，加上`-benchtime=5s`的参数，5s表示5秒。
 
 
@@ -1345,9 +1343,61 @@ BenchmarkHandleFunc-8     1307          303           -76.82%
 
 
 
+最终版本
+
+```go
+
+func handleHello(w http.ResponseWriter, r *http.Request) {
+	name := r.FormValue("name")
+	mu.Lock()
+	counter[name]++
+	cnt := []byte(strconv.Itoa(counter[name]))
+	mu.Unlock()
+
+	buf := pool.Get().(*bytes.Buffer)
+	buf.Reset()
+	buf.Write([]byte("<h1 style='color: "))
+	buf.Write([]byte(r.FormValue("color")))
+	buf.Write([]byte("'>Welcome!</h1> <p>Name: "))
+	buf.Write([]byte(name))
+	buf.Write([]byte("</p> <p>Count: "))
+	buf.Write(cnt)
+	w.Write(buf.Bytes())
+	pool.Put(buf)
+
+	logbuf := pool.Get().(*bytes.Buffer)
+	logbuf.Reset()
+	logbuf.Write([]byte("visited name="))
+	logbuf.Write([]byte(name))
+	logbuf.Write([]byte("count="))
+	logbuf.Write(cnt)
+	logger.Info().Msg(logbuf.String())
+	pool.Put(logbuf)
+}
+```
+
+和优化前的版本比对：
+
+```bash
+➜  how_to_tuning git:(master) ✗ benchcmp 1_.txt 10_final.txt
+benchmark                 old ns/op     new ns/op     delta
+BenchmarkHandleFunc-8     5403          590           -89.08%
+
+benchmark                 old allocs     new allocs     delta
+BenchmarkHandleFunc-8     25             2              -92.00%
+
+benchmark                 old bytes     new bytes     delta
+BenchmarkHandleFunc-8     1307          217           -83.40%
+```
+
+
+
+
+
 ## Best Practice
 
-- 对于频繁分配的小对象，考虑使用`sync.Pool`对象池优化；避免高频分配/GC。
+- 对于频繁分配的小对象，考虑使用`sync.Pool`对象池优化；避免高频分配/GC
+- 尽量提前分配slice和map的长度
 - 使用`atomic/sync.Map`替换sync.Mutex
 - 使用第三方库优化
 - 加入`-race`进行`Data Race`检查
