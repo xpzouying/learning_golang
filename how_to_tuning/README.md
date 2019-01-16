@@ -166,7 +166,37 @@ b.ReportAllocs()
   >
   > Go程序是运行了25.20s，使用内存1302MB；
 
-  - 
+  - 最终优化版本
+
+    > 运行2.29s，使用内存：351MB；提升了11倍；
+    >
+    > ```bash
+    > $ make havlak6
+    > go build havlak6.go
+    > $ ./xtime ./havlak6
+    > # of loops: 76000 (including 1 artificial root node)
+    > 2.26u 0.02s 2.29r 360224kB ./havlak6
+    > $
+    > ```
+    >
+    > 
+
+  - 按照Go相同的思路，实现了一遍C++相同的代码，具体代码参见：[C++版本代码](https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.cc)
+
+    > 耗时：2.19s，379MB内存；
+    >
+    > ```bash
+    > $ make havlak6cc
+    > g++ -O3 -o havlak6cc havlak6.cc
+    > $ ./xtime ./havlak6cc
+    > # of loops: 76000 (including 1 artificial root node)
+    > 1.99u 0.19s 2.19r 387936kB ./havlak6cc
+    > ```
+
+  - 代码源码参考：
+
+    - [c++](https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.cc)
+    - [go](https://github.com/rsc/benchgraffiti/blob/master/havlak/havlak6.go)
 
 
 
@@ -260,8 +290,6 @@ b.ReportAllocs()
 - list Func：显示函数每行代码的采样分析；
 - web：生成svg热点图片
 - weblist：生成svg list代码采样分析；
-
-
 
 ## CPU调优
 
