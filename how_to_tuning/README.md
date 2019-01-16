@@ -280,7 +280,37 @@ b.ReportAllocs()
 
   * 第三方的pprof tool
 
-    * uber火焰图
+    * uber火焰图，火焰图效果如下，
+
+      > 使用火焰图打开profile，
+      >
+      > ```bash
+      > ➜  how_to_tuning git:(master) ✗ go-torch /tmp/5_cpu.prof
+      > INFO[23:12:40] Run pprof command: go tool pprof -raw -seconds 30 /tmp/5_cpu.prof
+      > INFO[23:12:41] Writing svg to torch.svg
+      > ```
+      >
+      > 
+      >
+      > 使用chrome浏览器打开`torch.svg`，
+      >
+      > ![火焰图](./assets/torch.svg)
+      >
+      > 
+      >
+      > 生成内存火焰图，
+      >
+      > ```bash
+      > ➜  how_to_tuning git:(master) ✗ go-torch --alloc_objects /tmp/5_mem.prof
+      > INFO[23:17:53] Run pprof command: go tool pprof -raw -seconds 30 --alloc_objects /tmp/5_mem.prof
+      > INFO[23:17:54] Writing svg to torch.svg
+      > ```
+      >
+      > 
+      >
+      > 打开内存火焰图，
+      >
+      > ![内存火焰图](./assets/mem_torch.svg)
 
 
 
@@ -338,7 +368,10 @@ ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    
 
 
 
-打开生成的cpu profile文件，使用`topN`，或者使用`topN -cum`：
+打开生成的cpu profile文件，使用`topN`，或者使用`topN -cum`
+
+* 使用top打开耗时最大的的函数，但是不包括调用子函数的消耗
+* 使用top -cum会包括调用子函数的消耗，是一个累积的过程
 
 ```bash
 ➜  how_to_tuning git:(master) ✗ go tool pprof /tmp/cpu.prof
@@ -381,8 +414,6 @@ Showing top 10 nodes out of 124
      0.13s  5.68% 11.35%      0.67s 29.26%  runtime.mallocgc
 ```
 
-
-
 - flat：时间，但是不包括子函数运行时间；
 - cum：包括自函数运行的时间；
 
@@ -422,7 +453,7 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
 
 
 
-运行`web`使用浏览器打开
+运行`web`使用浏览器打开，示例如下，
 
 ```bash
 (pprof) web
@@ -436,7 +467,7 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
 
 
 
-也可以使用`weblist`或者`weblist handleHello`打开web版本的list，查看具体每一行代码的消耗。
+也可以使用`weblist`或者`weblist handleHello`打开web版本的list，查看具体每一行代码的消耗。示例如下，
 
 ![weblist](./assets/image-20190114114255919.png)
 
@@ -551,7 +582,7 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
 
 
 
-运行命令：运行压测时间稍微长一些，使用`-benchtime`可以设置。
+运行命令：运行压测时间稍微长一些，使用`-benchtime`可以设置压测时间，使得采样更加充分。默认压测时间为1s。
 
 ```bash
 ➜  how_to_tuning git:(master) ✗ go test -bench . -benchtime=3s -cpuprofile=/tmp/cpu.prof -memprofile=/tmp/mem.prof | tee 1_orig.txt
@@ -564,7 +595,7 @@ ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    
 
 
 
-调优前运行的结果保存在`1_orig.txt`文件中，一会儿调优可以对比。
+调优前运行的结果保存在`1_orig.txt`文件中，一会儿调优可以对比。后面可以使用`benchcmp`工具进行较为直观的观察。
 
 使用`list`获取最需要优化的代码段。
 
@@ -806,6 +837,42 @@ A Pool must not be copied after first use.
 ```
 
 注意文档中所列的需要注意的事项。
+
+
+
+**工作中遇到过的生产问题：使用logrus进行日志输出**
+
+![image-20190114150048184](./assets/image-20190114150048184.png)
+
+
+
+查看`top`：
+
+![image-20190114150708086](./assets/image-20190114150708086.png)
+
+
+
+查看WithFields为什么消耗这么多，发现在函数中产生大量的赋值操作： 
+
+![image-20190114150807984](/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/assets/image-20190114150807984.png)
+
+
+
+[logrus - issues 125: Improving logrus performance](https://github.com/Sirupsen/logrus/issues/125)
+
+![image-20190114143908128](./assets/image-20190114143908128.png)
+
+
+
+![image-20190114150923642](./assets/image-20190114150923642.png)
+
+INFO日志语句修改为直接输出有效信息：
+
+![image-20190114151009540](./assets/image-20190114151009540.png)
+
+优化后，
+
+- 内存从`18.7GB`优化到了`4.5GB`
 
 
 
@@ -1075,38 +1142,6 @@ logrus日志输出时，内存使用情况，
 
 
 
-使用火焰图打开profile，
-
-```bash
-➜  how_to_tuning git:(master) ✗ go-torch /tmp/5_cpu.prof
-INFO[23:12:40] Run pprof command: go tool pprof -raw -seconds 30 /tmp/5_cpu.prof
-INFO[23:12:41] Writing svg to torch.svg
-```
-
-
-
-使用chrome浏览器打开`torch.svg`，
-
-![火焰图](./assets/torch.svg)
-
-
-
-生成内存火焰图，
-
-```bash
-➜  how_to_tuning git:(master) ✗ go-torch --alloc_objects /tmp/5_mem.prof
-INFO[23:17:53] Run pprof command: go tool pprof -raw -seconds 30 --alloc_objects /tmp/5_mem.prof
-INFO[23:17:54] Writing svg to torch.svg
-```
-
-
-
-打开内存火焰图，
-
-![内存火焰图](assets/mem_torch.svg)
-
-
-
 优化结束后，与最初的性能比对情况。
 
 ```bash
@@ -1150,50 +1185,6 @@ Showing top 10 nodes out of 103
 
 
 
-生产问题，
-
-![image-20190114150048184](./assets/image-20190114150048184.png)
-
-
-
-查看`top`：
-
-![image-20190114150708086](./assets/image-20190114150708086.png)
-
-
-
-查看WithFields为什么消耗这么多： 
-
-![image-20190114150807984](./assets/image-20190114150807984.png)
-
-不停的在产生赋值操作。
-
-
-
-[logrus - issues 125: Improving logrus performance](https://github.com/Sirupsen/logrus/issues/125)
-
-![image-20190114143908128](/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning/assets/image-20190114143908128.png)
-
-
-
-
-
-
-
-![image-20190114150923642](./assets/image-20190114150923642.png)
-
-INFO日志语句修改为直接输出有效信息：
-
-![image-20190114151009540](./assets/image-20190114151009540.png)
-
-
-
-优化后，
-
-- 内存从`18.7GB`优化到了`4.5GB`
-
-
-
 选取新的日志库，
 
 Log a message and 10 fields:
@@ -1223,11 +1214,7 @@ Log a static string, without any context or `printf`-style templating:
 | apex/log         | 2751 ns/op | 584 B/op        | 11 allocs/op      |
 | log15            | 5181 ns/op | 1592 B/op       | 26 allocs/op      |
 
-
-
 使用`zerolog`输出日志：
-
-
 
 ```go
 // 定义zerolog日志对象，输出到Discard中
@@ -1248,8 +1235,6 @@ BenchmarkHandleFunc-8           20000000              1077 ns/op             391
 PASS
 ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    23.048s
 ```
-
-
 
 
 
@@ -1420,14 +1405,12 @@ BenchmarkHandleFunc-8     1307          217           -83.40%
 
 
 
-
-
 ## Best Practice
 
 - 对于频繁分配的小对象，考虑使用`sync.Pool`对象池优化；避免高频分配/GC
 - 尽量提前分配slice和map的长度
-- 使用`atomic/sync.Map`替换sync.Mutex
-- 使用第三方库优化
+- 使用`atomic`、`sync.Map`替换sync.Mutex
+- 使用第三方库优化：httprouter、encoding/json等等。。。
 - 加入`-race`进行`Data Race`检查
 - 在IO的地方，考虑引入goroutine，做成异步操作
   - 这一部分会在下一章中介绍goroutine的调优
@@ -1439,4 +1422,3 @@ BenchmarkHandleFunc-8     1307          217           -83.40%
 - [golang/pprof](https://golang.org/pkg/runtime/pprof/)
 - [golang/profiling-go-programs](https://blog.golang.org/profiling-go-programs)
 - [Google 推出 C++ Go Java Scala的基准性能测试](https://www.cnbeta.com/articles/soft/145252.htm)
-- 
