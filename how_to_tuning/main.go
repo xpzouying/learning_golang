@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"net/http"
+	_ "net/http/pprof"
 	"strconv"
 	"sync"
 
