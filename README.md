@@ -28,9 +28,17 @@ learning golang
 
 ### 如何通过源码学习
 
+- 源码地址：
+
+  - [RichardKnop/machinery](https://github.com/RichardKnop/machinery)
+
+    > Machinery is an asynchronous task queue/job queue based on distributed message passing.
+    >
+    > 异步的消息/任务队列，后端支持amqp、redis等
 
 
 
+## 参考
 
 阮一峰Restful：
 
