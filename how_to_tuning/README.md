@@ -321,6 +321,8 @@ b.ReportAllocs()
 - web：生成svg热点图片
 - weblist：生成svg list代码采样分析；
 
+
+
 ## CPU调优
 
 原理：
@@ -575,6 +577,16 @@ ROUTINE ======================== _/Users/zouying/src/Github.com/ZOUYING/learning
          .          .     33:   logrus.SetFormatter(&logrus.JSONFormatter{})
          .          .     34:
 ```
+
+
+
+也可以根据之前的`web`产出的图，查看底层`Format`具体消耗在什么地方，
+
+![image-20190121160506187](./assets/image-20190121160506187.png)
+
+使用`list Format`打开，
+
+![image-20190121160422563](./assets/image-20190121160422563.png)
 
 
 
