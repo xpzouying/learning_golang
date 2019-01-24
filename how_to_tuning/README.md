@@ -11,6 +11,8 @@
 
 代码功能：访客记次数。
 
+具体程序参见上一篇[how to test](https://github.com/xpzouying/learning_golang/tree/master/how_to_test)
+
 ```go
 package main
 
@@ -870,10 +872,6 @@ A Pool must not be copied after first use.
 
 
 
-[logrus - issues 125: Improving logrus performance](https://github.com/Sirupsen/logrus/issues/125)
-
-![image-20190114143908128](./assets/image-20190114143908128.png)
-
 
 
 ![image-20190114150923642](./assets/image-20190114150923642.png)
@@ -888,7 +886,7 @@ INFO日志语句修改为直接输出有效信息：
 
 
 
-使用示例：
+`sync.Pool`使用示例：
 
 ```go
 package main
@@ -1199,6 +1197,12 @@ Showing top 10 nodes out of 103
 
 选取新的日志库，
 
+logrus的作者明确表示性能不是核心目标：[logrus - issues 125: Improving logrus performance](https://github.com/Sirupsen/logrus/issues/125)
+
+![image-20190114143908128](./assets/image-20190114143908128.png)
+
+参考[zerolog](https://github.com/rs/zerolog)首页的介绍，将日志库更换为zerolog。
+
 Log a message and 10 fields:
 
 | Library         | Time        | Bytes Allocated | Objects Allocated |
@@ -1247,10 +1251,6 @@ BenchmarkHandleFunc-8           20000000              1077 ns/op             391
 PASS
 ok      _/Users/zouying/src/Github.com/ZOUYING/learning_golang/how_to_tuning    23.048s
 ```
-
-
-
-## GC优化
 
 
 
@@ -1421,8 +1421,8 @@ BenchmarkHandleFunc-8     1307          217           -83.40%
 
 - 对于频繁分配的小对象，考虑使用`sync.Pool`对象池优化；避免高频分配/GC
 - 尽量提前分配slice和map的长度
-- 使用`atomic`、`sync.Map`替换sync.Mutex
-- 使用第三方库优化：httprouter、encoding/json等等。。。
+- 使用`atomic`、`sync.Map`替换`sync.mutex`
+- 使用第三方库优化内部库：`net/http`、`encoding/json`等等。。。
 - 加入`-race`进行`Data Race`检查
 - 在IO的地方，考虑引入goroutine，做成异步操作
   - 这一部分会在下一章中介绍goroutine的调优
@@ -1431,6 +1431,7 @@ BenchmarkHandleFunc-8     1307          217           -83.40%
 
 ## 参考
 
+- [how to test](https://github.com/xpzouying/learning_golang/tree/master/how_to_test)
 - [golang/pprof](https://golang.org/pkg/runtime/pprof/)
 - [golang/profiling-go-programs](https://blog.golang.org/profiling-go-programs)
 - [Google 推出 C++ Go Java Scala的基准性能测试](https://www.cnbeta.com/articles/soft/145252.htm)
