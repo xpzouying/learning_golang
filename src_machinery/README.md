@@ -70,3 +70,182 @@ Machinery is an asynchronous task queue/job queue based on distributed message p
   - 运行worker（消费者）：`go run example/machinery.go -c config.yml worker`
   - 运行send（生产者）：`go run example/machinery.go -c config.yml send`
 
+
+
+
+
+## 分析worker
+
+运行worker（消费者）：`go run example/machinery.go -c config.yml worker`
+
+
+
+启动消费者，其实就是调用了`worker()`函数。
+
+```go
+func worker() error {
+	server, err := startServer()
+	if err != nil {
+		return err
+	}
+
+	// The second argument is a consumer tag
+	// Ideally, each worker should have a unique tag (worker1, worker2 etc)
+	worker := server.NewWorker("machinery_worker", 0)
+
+	if err := worker.Launch(); err != nil {
+		return err
+	}
+
+	return nil
+}
+```
+
+该函数做了两个操作：
+
+1. 启动一个server
+2. 创建并启动一个worker
+
+
+
+**一、启动server：startServer()的过程**
+
+
+
+1、首先看看Server的定义：保存了所有的配置。所有的task的worker都注册在server上。
+
+```go
+// Server is the main Machinery object and stores all configuration
+// All the tasks workers process are registered against the server
+type Server struct {
+	config          *config.Config
+	registeredTasks map[string]interface{}
+	broker          brokers.Interface
+	backend         backends.Interface
+}
+```
+
+2、startServer()中做了下面操作，
+
+```go
+func startServer() (server *machinery.Server, err error) {
+	// Create server instance
+	server, err = machinery.NewServer(loadConfig())
+	// ...
+
+	// Register tasks
+	tasks := map[string]interface{}{
+		"add":        exampletasks.Add,
+		"multiply":   exampletasks.Multiply,
+		"panic_task": exampletasks.PanicTask,
+	}
+
+	err = server.RegisterTasks(tasks)
+	return
+}
+```
+
+
+
+- 2.1、使用`NewServer()`创建一个Server对象；
+
+  - 创建Broker：使用`BrokerFactory()`进行创建不同的Broker，在当前版本中可以支持amqp、redis、redis+socket、eager协议/规范的broker。我们当前使用的是RabbitMQ，也就是AMQP协议。
+  - 创建Backend：Backend用于保存task结果，目前支持AMQP、memcache、redis、redis+socket、mongodb、eager协议/规范。我们当前配置使用的是redis。
+  - 创建好broker和backend后，也即完成了Server对象的创建。
+
+- 2.2、注册任务给Server；通过`server.RegisterTasks(tasks)`进行task的注册。当前默认注册的task有3个。
+
+  ```go
+  	// Register tasks
+  	tasks := map[string]interface{}{
+  		"add":        exampletasks.Add,
+  		"multiply":   exampletasks.Multiply,
+  		"panic_task": exampletasks.PanicTask,
+  	}
+  ```
+
+  RegisterTasks函数：
+
+  ```go
+  // RegisterTasks registers all tasks at once
+  func (server *Server) RegisterTasks(namedTaskFuncs map[string]interface{}) error {
+  	for _, task := range namedTaskFuncs {
+  		if err := tasks.ValidateTask(task); err != nil {
+  			return err
+  		}
+  	}
+  	server.registeredTasks = namedTaskFuncs
+  	server.broker.SetRegisteredTaskNames(server.GetRegisteredTaskNames())
+  	return nil
+  }
+  ```
+
+  把相应的task的处理函数注册到server上面；把任务的名字注册到broker里面。
+
+**二、启动worker的过程**
+
+启动worker有两步操作，
+
+1. 创建一个worker：在上一步创建的server上面创建一个worker；
+2. 启动一个worker：worker.Launch()函数。
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
