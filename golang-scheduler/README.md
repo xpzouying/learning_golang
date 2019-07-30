@@ -5,7 +5,6 @@
 来源：[个人博客](http://zouying.is/20190725-scheduler1-os/)
 
 
-
 ### 大纲
 
 - 一、操作系统的调度
@@ -22,7 +21,7 @@
 
 
 
-<hr />
+
 ### 操作系统的调度
 
 在介绍Golang的调度之前，先复习操作系统的调度。这也有利于理解Golang的调度，并与其进行对比。
@@ -128,7 +127,6 @@
 
 
 
-<hr />
 ### 参考文献
 
 - https://www.slideshare.net/matthewrdale/demystifying-the-go-scheduler
