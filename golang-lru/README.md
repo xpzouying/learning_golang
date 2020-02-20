@@ -10,8 +10,6 @@
 - 接口文档地址：https://pkg.go.dev/github.com/golang/groupcache/lru?tab=doc
 - 源码地址：https://github.com/golang/groupcache/tree/master/lru
 
-## 技术实现
-
 ### LRU Cache，Least Recently Used
 
 **理论：**
@@ -30,6 +28,15 @@ LRU是缓存中淘汰算法的一种，最近最少使用。
 
 
 ### 实现
+
+groupcache/lru使用两个数据结构实现LRU：
+
+- hash map
+- 双列表contain/list
+
+![image-20200220155927189](image-20200220155927189.png)
+
+
 
 在此分析`golang/groupcache/lru`的实现原理：
 
