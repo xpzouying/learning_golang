@@ -39,7 +39,7 @@ gotip tool trace ./trace.out
 
 ** Why cgo so fast? **
 
-1. pure go cost about: **50s**
+1. go cost about: **50s**
 
 ```
 (base) ➜  how_to_trace_cgo git:(how-to-trace) ✗ time ./go.out 
@@ -71,6 +71,26 @@ gotip tool trace ./trace.out
 2020/03/07 00:54:18 got res=-1310065414
 2020/03/07 00:54:19 got res=-1310065400
 ./cgo.out  91.93s user 0.24s system 477% cpu 19.302 total
+```
+
+
+3. `UPDATE` If I remove all c code in main.go, even I do not use it, then speedup speed of pure go.
+
+pure go cost about: **24s**
+
+```
+(base) ➜  how_to_trace_cgo git:(how-to-trace) ✗ time ./go.out
+2020/03/07 01:26:20 got res=-9900000004
+2020/03/07 01:26:20 got res=-9900000000
+2020/03/07 01:26:20 got res=-9900000000
+2020/03/07 01:26:20 got res=-9900000008
+2020/03/07 01:26:20 got res=-9899999992
+2020/03/07 01:26:20 got res=-9900000006
+2020/03/07 01:26:20 got res=-9899999998
+2020/03/07 01:26:20 got res=-9900000002
+2020/03/07 01:26:29 got res=-9899999996
+2020/03/07 01:26:29 got res=-9899999994
+./go.out  126.53s user 0.26s system 523% cpu 24.240 total
 ```
 
 
