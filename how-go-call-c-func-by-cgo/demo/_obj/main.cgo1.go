@@ -31,8 +31,8 @@ func main() {
 
 	SayHello()
 
-	p := ( /*line :31:7*/_Cfunc_get_person /*line :31:18*/)()
-	log.Printf("%#v, size of person: %d", p, ( /*line :32:43*/_Ciconst_sizeof_struct_person /*line :32:64*/))
+	p, err := ( /*line :31:12*/_C2func_get_person /*line :31:23*/)()
+	log.Printf("%#v, size of person: %d, err=%v", p, ( /*line :32:51*/_Ciconst_sizeof_struct_person /*line :32:72*/), err)
 
 	value := ( /*line :34:11*/_Cfunc_sum /*line :34:15*/)(p.score1, p.score2)
 	println("score=", value)

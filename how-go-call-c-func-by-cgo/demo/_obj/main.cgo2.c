@@ -21,7 +21,7 @@ static size_t _GoStringLen(_GoString_ s) { return (size_t)s.n; }
 __attribute__ ((unused))
 static const char *_GoStringPtr(_GoString_ s) { return s.p; }
 
-#line 3 "/Users/zouying/GOPATH/src/github.com/xpzouying/learning_golang/how-go-call-c-func-by-cgo/demo/main.go"
+#line 3 "/Users/zy/GOPATH/src/github.com/xpzouying/learning_golang/how-go-call-c-func-by-cgo/demo/main.go"
 
 typedef struct person {
 	char* name;
@@ -85,8 +85,29 @@ extern char* _cgo_topofstack(void);
 #define _cgo_msan_write(addr, sz)
 
 CGO_NO_SANITIZE_THREAD
+int
+_cgo_299c25848d85_C2func_get_person(void *v)
+{
+	int _cgo_errno;
+	struct {
+		person r;
+	} __attribute__((__packed__)) *_cgo_a = v;
+	char *_cgo_stktop = _cgo_topofstack();
+	__typeof__(_cgo_a->r) _cgo_r;
+	_cgo_tsan_acquire();
+	errno = 0;
+	_cgo_r = get_person();
+	_cgo_errno = errno;
+	_cgo_tsan_release();
+	_cgo_a = (void*)((char*)_cgo_a + (_cgo_topofstack() - _cgo_stktop));
+	_cgo_a->r = _cgo_r;
+	_cgo_msan_write(&_cgo_a->r, sizeof(_cgo_a->r));
+	return _cgo_errno;
+}
+
+CGO_NO_SANITIZE_THREAD
 void
-_cgo_cd21771de9c2_Cfunc_get_person(void *v)
+_cgo_299c25848d85_Cfunc_get_person(void *v)
 {
 	struct {
 		person r;
@@ -103,7 +124,7 @@ _cgo_cd21771de9c2_Cfunc_get_person(void *v)
 
 CGO_NO_SANITIZE_THREAD
 void
-_cgo_cd21771de9c2_Cfunc_sum(void *v)
+_cgo_299c25848d85_Cfunc_sum(void *v)
 {
 	struct {
 		int p0;

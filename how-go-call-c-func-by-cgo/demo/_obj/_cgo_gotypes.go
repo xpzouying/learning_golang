@@ -44,26 +44,39 @@ func _cgoCheckPointer(interface{}, interface{})
 func _cgoCheckResult(interface{})
 const _Ciconst_sizeof_struct_person = 0x10
 
-//go:cgo_import_static _cgo_cd21771de9c2_Cfunc_get_person
-//go:linkname __cgofn__cgo_cd21771de9c2_Cfunc_get_person _cgo_cd21771de9c2_Cfunc_get_person
-var __cgofn__cgo_cd21771de9c2_Cfunc_get_person byte
-var _cgo_cd21771de9c2_Cfunc_get_person = unsafe.Pointer(&__cgofn__cgo_cd21771de9c2_Cfunc_get_person)
+//go:cgo_import_static _cgo_299c25848d85_C2func_get_person
+//go:linkname __cgofn__cgo_299c25848d85_C2func_get_person _cgo_299c25848d85_C2func_get_person
+var __cgofn__cgo_299c25848d85_C2func_get_person byte
+var _cgo_299c25848d85_C2func_get_person = unsafe.Pointer(&__cgofn__cgo_299c25848d85_C2func_get_person)
 
 //go:cgo_unsafe_args
-func _Cfunc_get_person() (r1 _Ctype_struct_person) {
-	_cgo_runtime_cgocall(_cgo_cd21771de9c2_Cfunc_get_person, uintptr(unsafe.Pointer(&r1)))
+func _C2func_get_person() (r1 _Ctype_struct_person, r2 error) {
+	errno := _cgo_runtime_cgocall(_cgo_299c25848d85_C2func_get_person, uintptr(unsafe.Pointer(&r1)))
+	if errno != 0 { r2 = syscall.Errno(errno) }
 	if _Cgo_always_false {
 	}
 	return
 }
-//go:cgo_import_static _cgo_cd21771de9c2_Cfunc_sum
-//go:linkname __cgofn__cgo_cd21771de9c2_Cfunc_sum _cgo_cd21771de9c2_Cfunc_sum
-var __cgofn__cgo_cd21771de9c2_Cfunc_sum byte
-var _cgo_cd21771de9c2_Cfunc_sum = unsafe.Pointer(&__cgofn__cgo_cd21771de9c2_Cfunc_sum)
+//go:cgo_import_static _cgo_299c25848d85_Cfunc_get_person
+//go:linkname __cgofn__cgo_299c25848d85_Cfunc_get_person _cgo_299c25848d85_Cfunc_get_person
+var __cgofn__cgo_299c25848d85_Cfunc_get_person byte
+var _cgo_299c25848d85_Cfunc_get_person = unsafe.Pointer(&__cgofn__cgo_299c25848d85_Cfunc_get_person)
+
+//go:cgo_unsafe_args
+func _Cfunc_get_person() (r1 _Ctype_struct_person) {
+	_cgo_runtime_cgocall(_cgo_299c25848d85_Cfunc_get_person, uintptr(unsafe.Pointer(&r1)))
+	if _Cgo_always_false {
+	}
+	return
+}
+//go:cgo_import_static _cgo_299c25848d85_Cfunc_sum
+//go:linkname __cgofn__cgo_299c25848d85_Cfunc_sum _cgo_299c25848d85_Cfunc_sum
+var __cgofn__cgo_299c25848d85_Cfunc_sum byte
+var _cgo_299c25848d85_Cfunc_sum = unsafe.Pointer(&__cgofn__cgo_299c25848d85_Cfunc_sum)
 
 //go:cgo_unsafe_args
 func _Cfunc_sum(p0 _Ctype_int, p1 _Ctype_int) (r1 _Ctype_int) {
-	_cgo_runtime_cgocall(_cgo_cd21771de9c2_Cfunc_sum, uintptr(unsafe.Pointer(&p0)))
+	_cgo_runtime_cgocall(_cgo_299c25848d85_Cfunc_sum, uintptr(unsafe.Pointer(&p0)))
 	if _Cgo_always_false {
 		_Cgo_use(p0)
 		_Cgo_use(p1)
