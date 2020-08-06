@@ -165,7 +165,7 @@ func toGoFriends(cFriendList C.CFriendList) []Friend {
 
 
 
-**方法2：以制定类型的数组对C内存进行解析**
+**方法2：以指定类型的数组对C内存进行解析**
 
 ```go
 func toGoFriends2(cFriendList C.CFriendList) []Friend {
